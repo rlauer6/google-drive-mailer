@@ -1,0 +1,9 @@
+Sat Oct 24 07:36:41 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	[first check-in]:
+	* .gitignore: new
+	* CHANGELOG: new
+	* gdrive-mailer.py: new
+	* requirements.txt:
+	* utils/aws.py: new
+	* utils/gdrive.py: new
