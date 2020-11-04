@@ -1,0 +1,21 @@
+custom_role: google-drive-mailer-role
+description: Google Drive mailer
+env:
+  LOG_LEVEL: DEBUG
+  google_drive_credentials: ssm
+  google_drive_credentials_key: /google/foo
+  google_drive_folder_name: 211 Southgate
+  google_drive_ses_bucket_name: mail.openbedrock.net
+  google_drive_ses_bucket_prefix: mail
+handler: handler
+logs:
+  level: DEBUG
+  retention: 7
+memory: 128
+modules:
+- utils
+name: google-drive-mailer
+region: us-east-1
+runtime: python3.6
+service: ses.amazonaws.com
+timeout: 120

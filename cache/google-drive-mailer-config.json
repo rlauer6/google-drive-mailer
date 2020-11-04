@@ -1,0 +1,30 @@
+{
+    "FunctionName": "google-drive-mailer",
+    "FunctionArn": "arn:aws:lambda:us-east-1:106518701080:function:google-drive-mailer",
+    "Runtime": "python3.6",
+    "Role": "arn:aws:iam::106518701080:role/google-drive-mailer-role",
+    "Handler": "google-drive-mailer.handler",
+    "CodeSize": 14711693,
+    "Description": "Google Drive mailer",
+    "Timeout": 120,
+    "MemorySize": 128,
+    "LastModified": "2020-10-29T08:51:09.761+0000",
+    "CodeSha256": "vUvHh4miXoq5SVhsT3+upzqnykeJbSjZuQEj6WMrLc0=",
+    "Version": "$LATEST",
+    "Environment": {
+        "Variables": {
+            "GOOGLE_DRIVE_SES_BUCKET_NAME": "mail.openbedrock.net",
+            "GOOGLE_DRIVE_SES_BUCKET_PREFIX": "mail",
+            "GOOGLE_DRIVE_CREDENTIALS": "ssm",
+            "GOOGLE_DRIVE_CREDENTIALS_KEY": "/google/foo",
+            "LOG_LEVEL": "DEBUG",
+            "GOOGLE_DRIVE_FOLDER_NAME": "211 Southgate"
+        }
+    },
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    },
+    "RevisionId": "51f2aa2e-aada-478d-8276-8a32f219fab9",
+    "State": "Active",
+    "LastUpdateStatus": "Successful"
+}

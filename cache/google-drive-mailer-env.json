@@ -1,0 +1,1 @@
+{"Variables": {"LOG_LEVEL": "DEBUG", "GOOGLE_DRIVE_CREDENTIALS": "ssm", "GOOGLE_DRIVE_CREDENTIALS_KEY": "/google/foo", "GOOGLE_DRIVE_FOLDER_NAME": "211 Southgate", "GOOGLE_DRIVE_SES_BUCKET_NAME": "mail.openbedrock.net", "GOOGLE_DRIVE_SES_BUCKET_PREFIX": "mail"}}

@@ -1,0 +1,300 @@
+#--*- mode: makefile; -*-
+# --- DO NOT EDIT...this is a rendered file
+# --- 2020-10-26 18:16PM
+
+LAMBDA_NAME = google-drive-mailer
+
+RUNTIME = python3.6
+
+LAMBDA_ROLE = 
+
+REGION = us-east-1
+
+LOG_RETENTION = 7
+
+LAMBDA_SERVICE = ses.amazonaws.com
+
+PACKAGES = 
+
+PACKAGE_FILES = 
+
+GPACKAGE_FILES = $(PACKAGE_FILES:.py=.pyc)
+
+MODULES = \
+    utils
+
+GMODULES = $(MODULES:.py=.pyc)
+
+HANDLER_NAME = handler
+
+CUSTOM_ROLE = google-drive-mailer-role
+
+CACHE_DIR = cache
+
+SOURCE_ARN = 
+
+SOURCE_ACCOUNT = 106518701080
+
+# ------------------------------------------------
+
+#  don't duplicate symlinked files, max compression, just update
+ZIP = zip -y -r9 -u
+
+LAMBDA_FILE = $(LAMBDA_NAME)
+
+LAMBDA_CONFIG = $(LAMBDA_NAME).yaml
+
+ZIPFILE = \
+    $(LAMBDA_NAME).zip
+
+ROLE_ARN = \
+    $(CACHE_DIR)/$(LAMBDA_ROLE).arn
+
+CUSTOM_ROLE_ARN = \
+    $(CACHE_DIR)/$(CUSTOM_ROLE).arn
+
+# dependency is either on a custom role or role created by makala
+ifeq ("$(LAMBDA_ROLE)", "")
+LAMBDA_ROLE_ARN=$(CUSTOM_ROLE_ARN)
+else
+LAMBDA_ROLE_ARN=$(ROLE_ARN)
+endif
+
+LAMBDA = \
+    $(LAMBDA_NAME).py
+
+GLAMBDA = $(LAMBDA:.py=.pyc)
+
+LAMBDA_ARN = \
+    $(CACHE_DIR)/$(LAMBDA_NAME).arn
+
+LAMBDA_HANDLER = $(LAMBDA_NAME)
+
+LAMBDA_LOG_GROUP_NAME = /aws/lambda/$(LAMBDA_NAME)
+
+LAMBDA_LOG_GROUP = \
+    $(CACHE_DIR)/$(LAMBDA_NAME)-log-group.json
+
+LAMBDA_ENV = \
+    $(CACHE_DIR)/$(LAMBDA_NAME)-env.json
+
+VPC_CONFIG = \
+    $(CACHE_DIR)/vpc-config.json
+
+LAMBDA_CONFIGURATION = \
+    $(CACHE_DIR)/$(LAMBDA_NAME)-config.json
+
+LAMBDA_PERMISSION = \
+    $(CACHE_DIR)/$(LAMBDA_NAME)-permission.json
+
+all: $(ZIPFILE) $(LAMBDA_ARN) $(LAMBDA_PERMISSION) $(LAMBDA_CONFIGURATION) Makefile
+
+$(CUSTOM_ROLE_ARN): $(LAMBDA_CONFIG)
+	@if test -n "$(CUSTOM_ROLE)"; then \
+	  ROLE=$$(aws iam get-role --role-name $(CUSTOM_ROLE) 2>/dev/null); \
+	  if test -n "$$ROLE"; then \
+	    echo $$ROLE | jq -r .Role.Arn > $@; \
+	  else \
+	    echo "No such role: $(CUSTOM_ROLE)"; \
+	    false; \
+	  fi; \
+	else \
+	  test -e $@ || touch $@; \
+	fi
+	@test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
+
+$(ROLE_ARN): $(LAMBDA_CONFIG)
+	@if test -n "$(LAMBDA_ROLE)"; then \
+	  aws iam get-role --role-name $(LAMBDA_ROLE) 2>/dev/null > $@; \
+	  if ! test -s $@; then \
+	    makala -o $(LAMBDA_NAME); \
+	    sleep 10; \
+	  else \
+	    cat $@ | jq -r .Role.Arn > $@; \
+	  fi; \
+	else \
+	  test -e $@ || touch $@; \
+	fi
+	@test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
+
+# initial creation of the Lambda
+$(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
+
+	@if ! test -d cache; then \
+	  mkdir $(CACHE_DIR); \
+	fi
+
+	@if test -e $(LAMBDA_ENV); then \
+	  ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
+	fi; \
+	if ! test -e "$@"; then \
+	  aws lambda create-function \
+             \
+	    --role $$(cat $(LAMBDA_ROLE_ARN)) \
+	    --runtime $(RUNTIME) \
+	    --function-name $(LAMBDA_HANDLER) \
+	    --handler $(LAMBDA_HANDLER).$(HANDLER_NAME) \
+	    --description 'Google Drive mailer' \
+	    $$ENVIRONMENT \
+	    --timeout 120 \
+	    --memory-size 128 \
+	    --zip-file fileb://$(ZIPFILE) > $(LAMBDA_CONFIGURATION); \
+	  if test -s $(LAMBDA_CONFIGURATION); then \
+	    cat $(LAMBDA_CONFIGURATION) | jq -r .FunctionArn > $@; \
+	  else \
+	    rm -f $(LAMBDA_CONFIGURATION); \
+	    false; \
+	  fi; \
+	fi
+
+%.pyc: %.py
+	PYTHON=$$(which python3); \
+	$$PYTHON -c "import sys; import py_compile; sys.exit(0) if py_compile.compile('"$<"', '"$@"') else sys.exit(-1)"
+
+zip: $(ZIPFILE)
+
+requirements.txt:
+	PIP=$$(which pip3); \
+	$$PIP freeze > $@
+
+$(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES) requirements.txt
+
+	# zip/update dependencies
+	@PERL=$$(which perl); \
+	PIP=$$(which pip3); \
+	currdir=$$(pwd); \
+	for a in lib lib64; do \
+	  if test -d $$a && ! test -L $$a; then \
+	    cd $$currdir; \
+	    cd $$a/$(RUNTIME)/site-packages; \
+	    for f in $$(cat $$currdir/requirements.txt | $$PERL -npe 's/^(.*?)==.*$$/$$1/;'); do \
+	      $$PIP show -f $$f | grep "^ " | $$PERL -npe 's/^\s+//' | $(ZIP)  -@ $$currdir/$@ || true; \
+	    done; \
+	  fi; \
+	done
+
+	# zip/update up local modules
+	@if test -n "$(MODULES)"; then \
+	  for f in $(MODULES); do \
+	    zip -r9 -u $@ $$f || true; \
+	  done; \
+	fi
+
+	# packages
+	@if test -n "$(PACKAGE_FILES)"; then \
+	  for p in $(PACKAGE_FILES); do \
+	    zip -r9 -u $@ $$p || true; \
+	  done; \
+	fi
+
+	# zip/update lambda
+	zip -u -g $@ $< || true
+
+# anytime the lambda configuration changes we need to regenerate the
+# Makefile...
+Makefile: $(LAMBDA_CONFIG)
+	makala -o $(LAMBDA_NAME)
+	$(MAKE) $(MFLAGS)
+
+# update configuration if google-drive-mailer.yaml changes
+$(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(LAMBDA_ROLE_ARN)
+	@if test -e $(LAMBDA_ARN); then \
+	  if test -e $(LAMBDA_ENV); then \
+	    ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
+	  fi; \
+	  STATE=$$(aws lambda get-function-configuration --function-name $(LAMBDA_NAME) | jq -r .State); \
+	  if [ "$$STATE" = "Active" ]; then \
+	    aws lambda update-function-configuration \
+	      --function-name $(LAMBDA_NAME) \
+	      --description 'Google Drive mailer' \
+	       \
+	      --role $$(cat $(LAMBDA_ROLE_ARN)) \
+	      --runtime $(RUNTIME) \
+	      --handler $(LAMBDA_NAME).$(HANDLER_NAME) \
+	      --timeout 120 \
+	      --memory-size 128 \
+	      $$ENVIRONMENT > $@; \
+	  else \
+	    echo "Lambda state ($$STATE) not Active"; \
+	  fi; \
+	fi
+
+$(LAMBDA_CONFIGURATION):: $(ZIPFILE)
+	# if Lambda or any module is updated
+	if test -e "$(LAMBDA_ARN)"; then \
+	  aws lambda update-function-code \
+	    --zip-file fileb://$(ZIPFILE) --function $(LAMBDA_HANDLER) > $@; \
+	fi
+
+$(LAMBDA_LOG_GROUP):
+	aws logs create-log-group --log-group-name $(LAMBDA_LOG_GROUP_NAME) >$@
+
+	aws logs put-retention-policy --log-group-name $(LAMBDA_LOG_GROUP_NAME) \
+	  --retention-in-days $(LOG_RETENTION)
+
+$(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
+	@if test -e "$@"; then \
+	  OLD_SERVICE=$$(cat $@ | jq -r .Principal.Service); \
+          OLD_SID=$$(cat $@ | jq -r .Sid); \
+	fi;\
+	if test -n "$(LAMBDA_SERVICE)"; then \
+	  if ! [ "$$OLD_SERVICE" = "$(LAMBDA_SERVICE)" ]; then \
+	    if test -n "$$OLD_SERVICE"; then \
+	      REMOVE_SID=$$OLD_SID; \
+	    fi; \
+	    FUNCTION_ARN=$$(cat $(LAMBDA_ARN)) | jq -r .FunctionArn; \
+	    if test -n "$(SOURCE_ACCOUNT)"; then \
+		SOURCE_ACCOUNT_OPTION="--source-account $(SOURCE_ACCOUNT)"; \
+	    fi; \
+	    if test -n "$(SOURCE_ARN)";then \
+	      SOURCE_ARN_OPTION="--source-arn $(SOURCE_ARN)"; \
+	    fi; \
+	    aws lambda add-permission --function-name $(LAMBDA_HANDLER) \
+	      --action 'lambda:InvokeFunction' --statement-id $(LAMBDA_NAME)-$$$$ \
+	      --principal $(LAMBDA_SERVICE) \
+	      $$SOURCE_ARN_OPTION \
+	      $$SOURCE_ACCOUNT_OPTION \
+	      --output text >$@; \
+	  fi; \
+	else \
+	  if test -n "$$OLD_SERVICE"; then \
+	    REMOVE_SID=$$OLD_SID; \
+	  fi; \
+	fi; \
+	if test -n "$$REMOVE_SID"; then \
+	  aws lambda remove-permission --function-name $(LAMBDA_NAME) --statement-id $$REMOVE_SID; \
+	  aws lambda get-policy --function-name $(LAMBDA_NAME) 2>/dev/null > $@ || true; \
+	fi
+
+	touch $@
+
+check: $(ZIPFILE) $(LAMBDA_ARN)
+	STATE=$$(aws lambda get-function-configuration --function-name $(LAMBDA_NAME) | jq -r .State); \
+	echo "Function state is $$STATE"; test "$$STATE" = "Active"
+
+CLEANFILES = \
+    $(ZIPFILE) \
+    $(GLAMBDA) 
+
+.PHONY: clean
+
+clean:
+	rm -f $(CLEANFILES)
+
+uninstall: clean
+	aws lambda delete-function --function $(LAMBDA_HANDLER) 2>/dev/null || true
+	aws logs delete-log-group --log-group-name $(LAMBDA_LOG_GROUP_NAME) 2>/dev/null || true
+
+	if test -z "$(CUSTOM_ROLE)"; then \
+	  if $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) >/dev/null 2>&1); then \
+	    for a in $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) | jq -r '.AttachedPolicies|.[]|[.PolicyArn]|.[]'); do \
+	      aws iam detach-role-policy --role-name $(LAMBDA_ROLE) --policy-arn $$a; \
+	    done; \
+	  fi; \
+	  aws iam delete-role --role-name $(LAMBDA_ROLE) 2>/dev/null || true; \
+	fi
+	rm -f $(LAMBDA_LOG_GROUP) \
+	  $(LAMBDA_PERMISSION) \
+	  $(LAMBDA_ROLE_ARN) \
+	  $(LAMBDA_CONFIGURATION) \
+	  $(LAMBDA_ARN)

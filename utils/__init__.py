@@ -1,1 +1,1 @@
-__all__ = ['aws', 'google_drive']
+__all__ = ['aws', 'google_drive', 'email_parser']

@@ -1,3 +1,32 @@
+Tue Nov  3 06:45:39 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	[email parser]:
+	* google-drive-mailer.py
+	- renamed from drive-mailer.py
+	(get_files): new
+	(upload_email): new
+	(getCredentialsfromSSM): path
+	(getCredentialsFromFile): renamed from getCredentialFromFile()
+	* utils/email_parser.py: new
+	* utils/__init__.py: email_parser.py
+	* utils/google_drive.py
+	(deleteFile): new
+	(authServiceAccoutn): cache_discovery=false
+	(findSharedFolderId): -print
+	(uploadBytes): new
+	(getFolders): new
+
+	[AWS Lambda]:
+	* Makefile: new
+	* google-drive-mailer.yaml: new
+	* cache/google-drive-mailer-config.json: new
+	* cache/google-drive-mailer-env.json: new
+	* cache/google-drive-mailer-log-group.json: new
+	* cache/google-drive-mailer-permission.json: new
+	* cache/google-drive-mailer-role.arn: new
+	* cache/google-drive-mailer.arn: new
+	* create-role.sh: new
+
 Sat Oct 24 08:52:17 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	[options]:
